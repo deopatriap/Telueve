@@ -1,0 +1,7 @@
+{
+  "recommendations": [
+    // Tailwind CSS IntelliSense provides autocompletion and proper understanding of
+    // Tailwind directives. Installing this will give a better editor experience.
+    "bradlc.vscode-tailwindcss"
+  ]
+}

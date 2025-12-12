@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package eventcampus;
+
+service AuthService {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+}
+
+service EventService {
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
+  rpc SearchEvents(SearchEventsRequest) returns (ListEventsResponse);
+}
+
+message RegisterRequest {
+  string nama = 1;
+  string email = 2;
+  string password = 3;
+}
+
+message RegisterResponse {
+  bool success = 1;
+  string message = 2;
+  int32 user_id = 3;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  bool success = 1;
+  string message = 2;
+  string token = 3;
+}
+
+message Event {
+  int32 id = 1;
+  string nama_event = 2;
+  string deskripsi = 3;
+  string waktu_event = 4;
+}
+
+message ListEventsRequest {
+  int32 page = 1;
+  int32 limit = 2;
+}
+
+message SearchEventsRequest {
+  string query = 1;
+  int32 page = 2;
+  int32 limit = 3;
+}
+
+message ListEventsResponse {
+  repeated Event events = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 limit = 4;
+}

@@ -1,0 +1,15 @@
+{
+  // Ignore unknown at-rules (Tailwind directives like @tailwind, @apply, @layer, @screen)
+  // so the CSS linter in VS Code doesn't show warnings for our Tailwind CSS files.
+  "css.lint.unknownAtRules": "ignore",
+  "scss.lint.unknownAtRules": "ignore",
+  "less.lint.unknownAtRules": "ignore",
+
+  // Disable built-in CSS validation to avoid false positives with PostCSS / Tailwind directives
+  "css.validate": false,
+  "less.validate": false,
+  "scss.validate": false,
+
+  // Optionally enable Tailwind CSS IntelliSense completions if the extension is installed
+  "tailwindCSS.emmetCompletions": true
+}

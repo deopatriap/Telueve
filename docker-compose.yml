@@ -1,0 +1,65 @@
+services:
+  # 🐘 PostgreSQL Database
+  db:
+    image: postgres:15
+    container_name: eventcampus_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123123
+      POSTGRES_DB: event_campus
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  # ⚙️ Backend API (Node.js + gRPC)
+  api:
+    build:
+      context: ./backend
+      dockerfile: dockerfile
+    container_name: eventcampus_api
+    restart: always
+    depends_on:
+      - db
+    environment:
+      PORT: 5000
+      DB_USER: postgres
+      DB_PASSWORD: 123123
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: event_campus
+      JWT_SECRET: supersecretkey
+      GRPC_PORT: 50051
+    ports:
+      - "5000:5000"
+      - "50051:50051"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    working_dir: /app
+    command: ["npm", "run", "dev"]
+
+  # 💻 Frontend (React/Next.js)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: dockerfile
+    container_name: eventcampus_frontend
+    restart: always
+    depends_on:
+      - api
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:5000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    working_dir: /app
+    command: ["npm", "run", "dev"]
+
+# 💾 Persistent volume for PostgreSQL
+volumes:
+  db_data:

@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package event;
+
+service EventService {
+  rpc GetAllEvents (Empty) returns (EventList);
+  rpc SearchEvents (SearchRequest) returns (EventList);
+}
+
+message Empty {}
+
+message SearchRequest {
+  string query = 1;
+}
+
+message Event {
+  int32 id = 1;
+  string nama_event = 2;
+  string waktu_event = 3;
+  string deskripsi = 4;
+}
+
+message EventList {
+  repeated Event events = 1;
+}
