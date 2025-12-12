@@ -1,0 +1,17 @@
+{
+  // Disable ALL CSS validation to avoid Tailwind at-rules warnings
+  "css.validate": false,
+  "less.validate": false,
+  "scss.validate": false,
+  
+  // Ignore unknown at-rules as backup
+  "css.lint.unknownAtRules": "ignore",
+  "scss.lint.unknownAtRules": "ignore",
+  "less.lint.unknownAtRules": "ignore",
+
+  // Enable Tailwind CSS IntelliSense
+  "tailwindCSS.emmetCompletions": true,
+  
+  // Disable stylelint if installed
+  "stylelint.enable": false
+}
