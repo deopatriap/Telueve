@@ -9,10 +9,19 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@react-three/drei": "^9.114.0",
+    "@react-three/fiber": "^8.17.10",
+    "@types/animejs": "^3.1.13",
+    "@types/three": "^0.169.0",
+    "animejs": "^3.2.2",
     "axios": "^1.13.2",
+    "chart.js": "^4.5.1",
     "next": "14.2.0",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-chartjs-2": "^5.3.1",
+    "react-dom": "18.2.0",
+    "socket.io-client": "^4.8.3",
+    "three": "^0.169.0"
   },
   "devDependencies": {
     "@types/node": "20.4.2",

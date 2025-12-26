@@ -2,26 +2,46 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { adminAPI } from "@/lib/api";
+import MagneticButton from "@/components/MagneticButton";
+import Input from "@/components/Input";
+import Card from "@/components/Card";
+import ParticleField from "@/components/ParticleField";
+import GlitchText from "@/components/GlitchText";
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
     setLoading(true);
 
     try {
+      if (!username || !password) {
+        throw new Error("Username and password are required");
+      }
+
       const result = await adminAPI.login(username, password);
-      localStorage.setItem("adminToken", result.token);
-      router.push("/admin");
+
+      if (result.token) {
+        localStorage.setItem("adminToken", result.token);
+        setSuccess("Command Authorization Granted. Accessing System...");
+
+        setTimeout(() => {
+          router.push("/admin");
+        }, 1000);
+      }
     } catch (err: any) {
-      const errorMsg = err.response?.data?.message || "Login admin gagal";
+      const errorMsg = err.response?.data?.message || err.message || "Authorization Failed";
       setError(errorMsg);
     } finally {
       setLoading(false);
@@ -29,77 +49,126 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Header */}
+    <div className="min-h-screen bg-nier-cream flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background Patterns */}
+      <ParticleField />
+
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <div className="absolute top-0 left-0 w-full h-1 bg-nier-dark/10" />
+        <div className="absolute top-10 right-0 w-[50vw] h-[1px] bg-nier-dark/10" />
+        <div className="absolute bottom-10 left-0 w-[30vw] h-[1px] bg-nier-dark/10" />
+        <div className="absolute top-1/2 left-10 w-1 h-20 bg-nier-dark/10" />
+      </div>
+
+      <div className="w-full max-w-md relative z-10 animate-fade-in-up">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-            🔐 Admin Login
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Kelola event kampus Anda
+          <GlitchText
+            text="TELUEVE OPS"
+            as="h1"
+            className="text-3xl font-bold tracking-[0.2em] text-nier-dark mb-2"
+            trigger="mount"
+          />
+          <p className="text-xs font-mono uppercase tracking-widest text-nier-muted">
+            Command Authorization Terminal
           </p>
+          <div className="mt-2 text-[10px] text-nier-error font-mono tracking-tighter uppercase opacity-80">
+            ⚠ Warning: Restricted Access Area ⚠
+          </div>
         </div>
 
-        {/* Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8 space-y-6">
-          {/* Error Alert */}
+        <Card variant="default" decorative className="bg-nier-cream/90 backdrop-blur-sm">
           {error && (
-            <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 text-red-800 dark:text-red-200 px-4 py-3 rounded-lg">
-              ⚠️ {error}
+            <div className="bg-nier-error/10 border border-nier-error text-nier-error px-4 py-3 mb-6 text-xs uppercase tracking-wider font-mono">
+              [AUTH_ERROR] {error}
             </div>
           )}
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Username
-              </label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Masukkan username"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none dark:bg-gray-700 dark:text-white"
-                required
-              />
+          {success && (
+            <div className="bg-nier-success/10 border border-nier-success text-nier-success px-4 py-3 mb-6 text-xs uppercase tracking-wider font-mono">
+              [GRANTED] {success}
             </div>
+          )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Password
-              </label>
-              <input
-                type="password"
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <Input
+              label="Admin ID"
+              type="text"
+              placeholder="Enter username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+
+            <div className="relative">
+              <Input
+                label="System Access Code"
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Masukkan password"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none dark:bg-gray-700 dark:text-white"
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-0 bottom-3 text-nier-muted hover:text-nier-dark transition-colors uppercase text-[10px] tracking-widest"
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
             </div>
 
-            {/* Submit Button */}
-            <button
+            {/* Test Credentials Helper */}
+            <div className="bg-nier-sand/20 border border-nier-border/50 p-4 rounded-sm text-xs font-mono">
+              <p className="uppercase tracking-widest text-nier-dark mb-2 font-bold opacity-70 flex items-center gap-2">
+                <span className="w-2 h-2 bg-nier-info rounded-full animate-pulse"></span>
+                System Administrator (Click to Fill)
+              </p>
+              <div
+                onClick={() => { setUsername("admin"); setPassword("admin123"); }}
+                className="flex justify-between items-center cursor-pointer hover:bg-nier-dark/5 p-1 -mx-1 rounded transition-colors group"
+              >
+                <span className="text-nier-muted group-hover:text-nier-dark">ID:</span>
+                <span className="text-nier-dark">admin / admin123</span>
+              </div>
+            </div>
+
+            <MagneticButton
               type="submit"
-              disabled={loading}
-              className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+              variant="primary"
+              loading={loading}
+              fullWidth
             >
-              {loading ? "Loading..." : "Login"}
-            </button>
+              Verify Credentials
+            </MagneticButton>
           </form>
 
-          {/* Back Link */}
-          <div className="text-center">
-            <button
-              onClick={() => router.push("/")}
-              className="text-purple-600 hover:text-purple-700 font-semibold"
+          <div className="mt-8 pt-6 border-t border-nier-border/50 text-center">
+            <p className="text-xs text-nier-muted uppercase tracking-wider mb-4">
+              Return to Standard Interface?
+            </p>
+            <MagneticButton
+              variant="secondary"
+              fullWidth
+              onClick={() => router.push("/login")}
             >
-              ← Kembali ke Homepage
-            </button>
+              Back to User Portal
+            </MagneticButton>
           </div>
-        </div>
+
+          <div className="mt-4 text-center">
+            <Link
+              href="/"
+              className="text-[10px] text-nier-muted hover:text-nier-dark uppercase tracking-widest transition-colors font-mono"
+            >
+              [ Terminate Session ]
+            </Link>
+          </div>
+        </Card>
+
+        {/* Footer */}
+        <p className="text-center text-nier-muted/50 text-[10px] font-mono mt-6 uppercase tracking-widest">
+          Command Terminal v1.0.4 // Auth Protocol Active
+        </p>
       </div>
     </div>
   );

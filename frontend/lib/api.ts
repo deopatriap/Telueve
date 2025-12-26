@@ -3,7 +3,7 @@ import axios from "axios";
 // =============================
 // API Base URL
 // =============================
-const API_BASE_URL = "http://localhost:5000/api";
+const API_BASE_URL = "http://localhost:5005/api";
 
 // Create axios instance
 const api = axios.create({
@@ -18,7 +18,7 @@ const api = axios.create({
 // =============================
 api.interceptors.request.use((config) => {
   const adminToken = localStorage.getItem("adminToken");
-  const userToken = localStorage.getItem("token");
+  const userToken = localStorage.getItem("token") || sessionStorage.getItem("token");
   const token = adminToken || userToken;
 
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -63,7 +63,7 @@ export const authAPI = {
 // Event Endpoints
 // =============================
 export const eventAPI = {
-  getAllEvents: async () => (await api.get("/events")).data,
+  getAllEvents: async (category?: string) => (await api.get("/events", { params: { category } })).data,
 
   getEventDetail: async (id: number) =>
     (await api.get(`/events/${id}`)).data,
@@ -142,6 +142,28 @@ export const adminAPI = {
       })
     ).data,
 
+  getAllUsers: async () => (await api.get("/admin/users")).data,
+
+  updateUser: async (userId: number, data: { nama: string; email: string }) =>
+    (await api.put(`/admin/users/${userId}`, data)).data,
+
+  deleteUser: async (userId: number) =>
+    (await api.delete(`/admin/users/${userId}`)).data,
+
+  getAllRegistrations: async () => (await api.get("/admin/registrations")).data,
+
+  bulkUpdateRegistrationStatus: async (registrationIds: number[], status: string) =>
+    (await api.put("/admin/registrations/bulk", { registrationIds, status })).data,
+
+  getAllAnnouncements: async () => (await api.get("/admin/announcements")).data,
+  createAnnouncement: async (data: any) => (await api.post("/admin/announcements", data)).data,
+  toggleAnnouncement: async (id: number, active: boolean) => (await api.put(`/admin/announcements/${id}/toggle`, { active })).data,
+  deleteAnnouncement: async (id: number) => (await api.delete(`/admin/announcements/${id}`)).data,
+  getPublicAnnouncements: async () => (await api.get("/events/announcements")).data,
+
+  getSettings: async () => (await api.get("/admin/settings")).data,
+  updateSettings: async (settings: any) => (await api.put("/admin/settings", settings)).data,
+
   updateEvent: async (
     event_id: number,
     nama_event: string,
@@ -166,6 +188,8 @@ export const adminAPI = {
 
   deleteEvent: async (event_id: number) =>
     (await api.delete(`/admin/events/${event_id}`)).data,
+
+  getDashboardStats: async () => (await api.get("/admin/stats")).data,
 };
 
 export default api;

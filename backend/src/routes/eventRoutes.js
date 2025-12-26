@@ -2,11 +2,14 @@ import express from 'express';
 import {
   getAllEvents,
   getEventById,
+  getEventDetail,
   createEvent,
   updateEvent,
   deleteEvent,
   getUpcomingEvents,
-  searchEvents
+  searchEvents,
+  getEventsPaginated,
+  getPublicAnnouncements
 } from '../controllers/eventController.js';
 import { verifyToken, isAdmin, isOrganizer } from '../middleware/authMiddleware.js';
 import { validate, createEventSchema, updateEventSchema } from '../middleware/validation.js';
@@ -20,14 +23,17 @@ const router = express.Router();
 // Get all events
 router.get('/', getAllEvents);
 
-// Get upcoming events
-router.get('/upcoming', getUpcomingEvents);
+// Get public announcements
+router.get('/announcements', getPublicAnnouncements);
 
 // Search events
 router.get('/search', searchEvents);
 
+// Get events paginated
+router.get('/paginated', getEventsPaginated);
+
 // Get single event detail (public, anyone can view)
-router.get('/:id', getEventById);
+router.get('/:id', getEventDetail); // Handler changed to getEventDetail
 
 // ========================================
 // ORGANIZER/ADMIN ROUTES (Event Management)

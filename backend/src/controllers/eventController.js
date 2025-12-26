@@ -5,8 +5,8 @@ import pool from "../config/database.js";
 ============================ */
 export const getAllEvents = async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT 
+    const { category } = req.query;
+    let query = `SELECT 
         e.*,
         u.nama as organizer_name,
         u.email as organizer_email,
@@ -14,10 +14,17 @@ export const getAllEvents = async (req, res) => {
         COUNT(DISTINCT CASE WHEN r.status = 'accepted' THEN r.id END) as accepted_registrations
       FROM events e
       LEFT JOIN users u ON e.created_by = u.id
-      LEFT JOIN registrations r ON e.id = r.event_id
-      GROUP BY e.id, u.nama, u.email
-      ORDER BY e.created_at DESC`
-    );
+      LEFT JOIN registrations r ON e.id = r.event_id`;
+
+    const params = [];
+    if (category && category !== 'All') {
+      query += ` WHERE e.category = $1`;
+      params.push(category);
+    }
+
+    query += ` GROUP BY e.id, u.nama, u.email ORDER BY e.created_at DESC`;
+
+    const result = await pool.query(query, params);
 
     res.json({
       success: true,
@@ -169,7 +176,8 @@ export const createEvent = async (req, res) => {
       waktu_event,
       jam_mulai,
       jam_selesai,
-      tempat
+      tempat,
+      category
     } = req.body;
 
     const createdBy = req.user.userId;
@@ -192,8 +200,8 @@ export const createEvent = async (req, res) => {
     // Insert event
     const result = await pool.query(
       `INSERT INTO events 
-      (nama_event, deskripsi, tanggal_event, waktu_event, jam_mulai, jam_selesai, tempat, created_by, created_at, updated_at) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+      (nama_event, deskripsi, tanggal_event, waktu_event, jam_mulai, jam_selesai, tempat, category, created_by, created_at, updated_at) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
       RETURNING id`,
       [
         nama_event,
@@ -203,6 +211,7 @@ export const createEvent = async (req, res) => {
         jam_mulai || null,
         jam_selesai || null,
         tempat,
+        category || 'General',
         createdBy
       ]
     );
@@ -237,7 +246,8 @@ export const updateEvent = async (req, res) => {
       waktu_event,
       jam_mulai,
       jam_selesai,
-      tempat
+      tempat,
+      category
     } = req.body;
 
     // Check if event exists
@@ -273,8 +283,9 @@ export const updateEvent = async (req, res) => {
           jam_mulai = $5,
           jam_selesai = $6,
           tempat = $7,
+          category = $8,
           updated_at = NOW()
-      WHERE id = $8`,
+      WHERE id = $9`,
       [
         nama_event || event.nama_event,
         deskripsi !== undefined ? deskripsi : event.deskripsi,
@@ -283,6 +294,7 @@ export const updateEvent = async (req, res) => {
         jam_mulai !== undefined ? jam_mulai : event.jam_mulai,
         jam_selesai !== undefined ? jam_selesai : event.jam_selesai,
         tempat || event.tempat,
+        category || event.category,
         id
       ]
     );
@@ -347,6 +359,66 @@ export const deleteEvent = async (req, res) => {
       success: false,
       message: "Gagal menghapus event",
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/* ============================
+   GET EVENT DETAIL (Alias for getEventById)
+============================ */
+export const getEventDetail = getEventById;
+
+/* ============================
+   GET EVENTS PAGINATED
+============================ */
+export const getEventsPaginated = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    const countResult = await pool.query('SELECT COUNT(*) FROM events');
+    const totalEvents = parseInt(countResult.rows[0].count);
+    const totalPages = Math.ceil(totalEvents / limit);
+
+    const result = await pool.query(
+      `SELECT * FROM events ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+
+    res.json({
+      success: true,
+      data: result.rows,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalEvents,
+        limit
+      }
+    });
+  } catch (error) {
+    console.error("Get events paginated error:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Gagal mengambil data events"
+    });
+  }
+};
+
+/* ============================
+   GET PUBLIC ANNOUNCEMENTS
+============================ */
+export const getPublicAnnouncements = async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT * FROM announcements WHERE active = true ORDER BY created_at DESC"
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Get public announcements error:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Gagal mengambil data announcements"
     });
   }
 };

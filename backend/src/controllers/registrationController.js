@@ -4,98 +4,90 @@ import pool from "../config/database.js";
    REGISTER FOR EVENT
 ============================ */
 export const registerForEvent = async (req, res) => {
+  const client = await pool.connect ? await pool.connect() : pool; // Handle both pg pool and sqlite wrapper
+  // Note: SQLite wrapper might not support explicit client connectivity like pg, 
+  // but our wrapper's query method handles it. 
+  // For SQLite wrapper without explicit transaction support in the wrapper, we can just run queries.
+  // However, assuming standard SQL behavior or the wrapper implementation:
+
   try {
-    console.log("=== REGISTER FOR EVENT DEBUG ===");
-    console.log("🔍 Headers:", req.headers.authorization);
-    console.log("🔍 req.user:", req.user);
-    console.log("🔍 req.params:", req.params);
-    console.log("🔍 req.body:", req.body);
-    
     const userId = req.user.userId;
     const { eventId } = req.params;
-    
-    console.log("🔍 userId final:", userId);
-    console.log("🔍 eventId final:", eventId);
-    console.log("🔍 eventId type:", typeof eventId);
 
-    // Validasi eventId
     if (!eventId || isNaN(eventId)) {
-      console.log("❌ Event ID tidak valid");
-      return res.status(400).json({ 
-        success: false, 
-        message: "Event ID tidak valid" 
-      });
+      return res.status(400).json({ success: false, message: "Event ID tidak valid" });
     }
 
-    // Check if event exists
-    console.log("🔍 Checking if event exists...");
-    const eventResult = await pool.query("SELECT * FROM events WHERE id = $1", [eventId]);
-    
+    // Start Transaction
+    if (client.query) await client.query('BEGIN');
+    else await client.run('BEGIN TRANSACTION');
+
+    // Check event and lock row (for Postgres) or just select (SQLite is serializable usually)
+    // using FOR UPDATE is standard for PG to lock the row and prevent race conditions
+    // SQLite doesn't support FOR UPDATE but handles concurrency differently (file lock)
+    const eventQuery = process.env.DB_CLIENT === 'pg'
+      ? "SELECT * FROM events WHERE id = $1 FOR UPDATE"
+      : "SELECT * FROM events WHERE id = $1";
+
+    const eventResult = await (client.query ? client.query(eventQuery, [eventId]) : client.query(eventQuery, [eventId]));
+
     if (eventResult.rows.length === 0) {
-      console.log("❌ Event tidak ditemukan");
-      return res.status(404).json({ 
-        success: false, 
-        message: "Event tidak ditemukan" 
-      });
+      if (client.query) await client.query('ROLLBACK');
+      else await client.run('ROLLBACK');
+      return res.status(404).json({ success: false, message: "Event tidak ditemukan" });
     }
 
     const event = eventResult.rows[0];
-    console.log("✅ Event found:", event.nama_event);
 
     // Check if already registered
-    console.log("🔍 Checking if user already registered...");
-    const existResult = await pool.query(
-      "SELECT * FROM registrations WHERE user_id = $1 AND event_id = $2",
-      [userId, eventId]
-    );
+    const existResult = await (client.query
+      ? client.query("SELECT * FROM registrations WHERE user_id = $1 AND event_id = $2", [userId, eventId])
+      : client.query("SELECT * FROM registrations WHERE user_id = $1 AND event_id = $2", [userId, eventId]));
 
     if (existResult.rows.length > 0) {
-      console.log("❌ User sudah terdaftar");
-      return res.status(400).json({ 
-        success: false, 
-        message: "Anda sudah terdaftar di event ini" 
-      });
+      if (client.query) await client.query('ROLLBACK');
+      else await client.run('ROLLBACK');
+      return res.status(400).json({ success: false, message: "Anda sudah terdaftar di event ini" });
     }
 
     // Check kuota
-    console.log("🔍 Checking kuota...");
-    const countResult = await pool.query(
-      "SELECT COUNT(*) as total FROM registrations WHERE event_id = $1 AND status IN ('pending', 'accepted')",
-      [eventId]
-    );
+    const countResult = await (client.query
+      ? client.query("SELECT COUNT(*) as total FROM registrations WHERE event_id = $1 AND status IN ('pending', 'accepted')", [eventId])
+      : client.query("SELECT COUNT(*) as total FROM registrations WHERE event_id = $1 AND status IN ('pending', 'accepted')", [eventId]));
 
     const currentRegistrations = parseInt(countResult.rows[0].total);
-    console.log("📊 Current registrations:", currentRegistrations);
-    console.log("📊 Kuota peserta:", event.kuota_peserta);
 
     if (event.kuota_peserta && currentRegistrations >= event.kuota_peserta) {
-      console.log("❌ Kuota penuh");
-      return res.status(400).json({
-        success: false,
-        message: "Kuota peserta sudah penuh"
-      });
+      if (client.query) await client.query('ROLLBACK');
+      else await client.run('ROLLBACK');
+      return res.status(400).json({ success: false, message: "Kuota peserta sudah penuh" });
     }
 
-    // Register user to event
-    console.log("✅ Registering user to event...");
-    await pool.query(
-      "INSERT INTO registrations (user_id, event_id, status, registered_at) VALUES ($1, $2, 'pending', NOW())",
-      [userId, eventId]
-    );
+    // Register
+    await (client.query
+      ? client.query("INSERT INTO registrations (user_id, event_id, status, registered_at) VALUES ($1, $2, 'pending', NOW())", [userId, eventId])
+      : client.run("INSERT INTO registrations (user_id, event_id, status, registered_at) VALUES (?, ?, 'pending', datetime('now', 'localtime'))", [userId, eventId]));
 
-    console.log("✅ Registration successful!");
-    res.status(201).json({ 
-      success: true, 
-      message: "Berhasil mendaftar event. Menunggu konfirmasi organizer." 
+    // Commit
+    if (client.query) await client.query('COMMIT');
+    else await client.run('COMMIT');
+
+    res.status(201).json({
+      success: true,
+      message: "Berhasil mendaftar event. Menunggu konfirmasi organizer."
     });
+
   } catch (error) {
-    console.error("❌ Register error:", error);
-    console.error("❌ Error stack:", error.stack);
-    res.status(500).json({ 
-      success: false, 
-      message: "Gagal mendaftar event",
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    if (client.query) await client.query('ROLLBACK').catch(() => { });
+    else await client.run('ROLLBACK').catch(() => { });
+
+    console.error("Register error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Gagal mendaftar event"
     });
+  } finally {
+    if (client.release) client.release();
   }
 };
 
@@ -114,9 +106,9 @@ export const cancelRegistration = async (req, res) => {
     );
 
     if (existResult.rows.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Anda belum terdaftar di event ini" 
+      return res.status(404).json({
+        success: false,
+        message: "Anda belum terdaftar di event ini"
       });
     }
 
@@ -126,15 +118,15 @@ export const cancelRegistration = async (req, res) => {
       [userId, eventId]
     );
 
-    res.json({ 
-      success: true, 
-      message: "Pendaftaran berhasil dibatalkan" 
+    res.json({
+      success: true,
+      message: "Pendaftaran berhasil dibatalkan"
     });
   } catch (error) {
     console.error("Cancel registration error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Gagal membatalkan pendaftaran" 
+    res.status(500).json({
+      success: false,
+      message: "Gagal membatalkan pendaftaran"
     });
   }
 };
@@ -416,5 +408,64 @@ export const getRegistrationStatistics = async (req, res) => {
       success: false,
       message: "Gagal mengambil statistik registrasi"
     });
+  }
+};
+
+/* ============================
+   GLOBAL ADMIN REGISTRATIONS
+============================ */
+
+// Get All Registrations (Admin)
+export const getAllRegistrations = async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        r.id,
+        r.status,
+        r.registered_at,
+        u.id as user_id,
+        u.nama as user_name,
+        u.email as user_email,
+        e.id as event_id,
+        e.nama_event,
+        e.tanggal_event
+      FROM registrations r
+      JOIN users u ON r.user_id = u.id
+      JOIN events e ON r.event_id = e.id
+      ORDER BY r.registered_at DESC
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error get all registrations:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Bulk Update Status (Admin)
+export const bulkUpdateRegistrationStatus = async (req, res) => {
+  try {
+    const { registrationIds, status } = req.body;
+
+    if (!registrationIds || !Array.isArray(registrationIds) || registrationIds.length === 0) {
+      return res.status(400).json({ error: 'registrationIds array required' });
+    }
+
+    if (!['pending', 'accepted', 'rejected'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    const query = `
+      UPDATE registrations 
+      SET status = $1 
+      WHERE id = ANY($2::int[])
+    `;
+
+    await pool.query(query, [status, registrationIds]);
+
+    res.json({ message: `Updated ${registrationIds.length} registrations to ${status}` });
+  } catch (err) {
+    console.error('Error bulk update registrations:', err);
+    res.status(500).json({ error: err.message });
   }
 };

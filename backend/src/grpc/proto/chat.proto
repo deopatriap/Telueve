@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package chat;
+
+service ChatService {
+  rpc SendMessage (ChatMessage) returns (ChatResponse);
+  rpc GetMessages (Empty) returns (MessageList);
+  rpc StreamMessages (Empty) returns (stream ChatMessage);
+}
+
+message Empty {}
+
+message ChatMessage {
+  string user = 1;
+  string text = 2;
+  string timestamp = 3;
+  bool isAdmin = 4;
+}
+
+message ChatResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message MessageList {
+  repeated ChatMessage messages = 1;
+}

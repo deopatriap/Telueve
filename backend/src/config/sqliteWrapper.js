@@ -8,7 +8,10 @@ class SQLitePool {
     this.dbPath = path.resolve('database.sqlite');
     this.db = new sqlite3.Database(this.dbPath);
     console.log(`⚠️  Using SQLite database at ${this.dbPath}`);
-    this.initPromise = this.init();
+    this.initPromise = this.init().catch(err => {
+      console.error("❌ FATAL: SQLite Init Failed:", err);
+      process.exit(1);
+    });
   }
 
   async init() {
@@ -57,9 +60,36 @@ class SQLitePool {
       )
     `;
 
+    const createAnnouncements = `
+      CREATE TABLE IF NOT EXISTS announcements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        type TEXT DEFAULT 'info',
+        active BOOLEAN DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+    const createSettings = `
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
+      )
+    `;
+
     await this.run(createUsers);
     await this.run(createEvents);
     await this.run(createRegistrations);
+    await this.run(createAnnouncements);
+    await this.run(createSettings);
+
+    // Create Indexes for Performance
+    await this.run('CREATE INDEX IF NOT EXISTS idx_registrations_user ON registrations(user_id)');
+    await this.run('CREATE INDEX IF NOT EXISTS idx_registrations_event ON registrations(event_id)');
+    await this.run('CREATE INDEX IF NOT EXISTS idx_events_created_by ON events(created_by)');
+    await this.run('CREATE INDEX IF NOT EXISTS idx_events_nama ON events(nama_event)');
+    await this.run('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)');
   }
 
   connect() {
@@ -111,24 +141,48 @@ class SQLitePool {
   }
 
   convertQuery(text, params) {
-    // Replace $1, $2 with ?
-    // Also replace NOW() with datetime('now')
-    // Also replace ILIKE with LIKE (SQLite is case insensitive by default for ASCII, but usually LIKE is enough)
-
+    // 1. Handle SQL syntax replacements first
     let sql = text
-      .replace(/\$\d+/g, '?')
       .replace(/NOW\(\)/gi, "datetime('now', 'localtime')")
       .replace(/ILIKE/gi, 'LIKE')
-      .replace(/Boolean\(/g, '') // Remove JS type casting if leaked strings
-      .replace(/::[a-z]+/g, ''); // Remove PG specific casts like ::date
+      .replace(/SERIAL PRIMARY KEY/gi, 'INTEGER PRIMARY KEY AUTOINCREMENT')
+      .replace(/BOOLEAN/gi, 'INTEGER')
+      .replace(/true/gi, '1')
+      .replace(/false/gi, '0')
+      .replace(/Boolean\(/g, '')
+      .replace(/::[a-z]+/g, '');
 
-    return { sql, params };
+    // 2. Handle parameter mapping ($1 -> ?, $2 -> ?)
+    // We need to rebuild the params array to match the order of ? appearance
+    const newParams = [];
+
+    // Replace $N with ? and populate newParams
+    sql = sql.replace(/\$(\d+)/g, (match, number) => {
+      const index = parseInt(number) - 1; // $1 is index 0
+      if (index >= 0 && index < params.length) {
+        newParams.push(params[index]);
+        return '?';
+      }
+      return match; // Keep if invalid index (shouldn't happen)
+    });
+
+    // console.log(`[SQLite] Executing: ${sql.substring(0, 100)}...`);
+
+    return { sql, params: newParams };
   }
 
   async run(sql, params = []) {
+    // Apply conversion
+    // For raw run(), we assume generic SQL or manual ? usage.
+    // If it uses $N, we need to convert.
+    const queryObj = this.convertQuery(sql, params);
+
     return new Promise((resolve, reject) => {
-      this.db.run(sql, params, function (err) {
-        if (err) reject(err);
+      this.db.run(queryObj.sql, queryObj.params, function (err) {
+        if (err) {
+          console.error('[SQLite] Run Error:', err.message);
+          reject(err);
+        }
         else resolve(this);
       });
     });

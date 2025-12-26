@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { registrationAPI } from "@/lib/api";
 import Card from "@/components/Card";
 import Button from "@/components/Button";
-import { Skeleton } from "@/components/Skeleton";
+import { EventCardSkeleton } from "@/components/Skeleton";
 import { useToast } from "@/components/Toast";
+import Badge from "@/components/Badge";
 
 interface MyRegistration {
   registration_id: number;
@@ -28,6 +29,11 @@ export default function MyRegistrationsPage() {
   const [registrations, setRegistrations] = useState<MyRegistration[]>([]);
   const [loading, setLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [filterStatus, setFilterStatus] = useState("all");
+
+  const filteredRegistrations = registrations.filter(reg =>
+    filterStatus === "all" ? true : reg.status === filterStatus
+  );
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -76,27 +82,27 @@ export default function MyRegistrationsPage() {
     });
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusVariant = (status: string) => {
     switch (status) {
       case "pending":
-        return "badge badge-pending";
+        return "warning";
       case "accepted":
-        return "badge badge-accepted";
+        return "success";
       case "rejected":
-        return "badge badge-rejected";
+        return "error";
       default:
-        return "badge";
+        return "default";
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
       case "pending":
-        return "⏳ Pending";
+        return "Pending";
       case "accepted":
-        return "✓ Accepted";
+        return "Accepted";
       case "rejected":
-        return "✕ Rejected";
+        return "Rejected";
       default:
         return status;
     }
@@ -107,13 +113,13 @@ export default function MyRegistrationsPage() {
       <div className="min-h-screen bg-nier-cream">
         <header className="border-b border-nier-border">
           <div className="max-w-6xl mx-auto px-6 py-4">
-            <Skeleton className="h-6 w-48" />
+            <EventCardSkeleton />
           </div>
         </header>
         <main className="max-w-6xl mx-auto p-6">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} variant="card" />
+              <EventCardSkeleton key={i} />
             ))}
           </div>
         </main>
@@ -151,10 +157,34 @@ export default function MyRegistrationsPage() {
           </p>
         </div>
 
-        {registrations.length === 0 ? (
+        {/* Status Filters */}
+        <div className="flex justify-center mb-10">
+          <div className="inline-flex bg-nier-sand/20 p-1 rounded-full border border-nier-border">
+            {["all", "pending", "accepted", "rejected"].map((status) => (
+              <button
+                key={status}
+                onClick={() => setFilterStatus(status)}
+                className={`
+                  px-6 py-2 rounded-full text-xs uppercase tracking-widest transition-all duration-300
+                  ${filterStatus === status
+                    ? "bg-nier-dark text-nier-cream shadow-md"
+                    : "bg-transparent text-nier-muted hover:text-nier-dark"
+                  }
+                `}
+              >
+                {status}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {filteredRegistrations.length === 0 ? (
           <Card className="max-w-md mx-auto text-center py-12" decorative>
             <p className="text-nier-muted italic mb-6">
-              You have not registered for any events yet
+              {filterStatus === "all"
+                ? "You have not registered for any events yet"
+                : `No registrations found with status: ${filterStatus}`
+              }
             </p>
             <Button onClick={() => router.push("/events")}>
               Browse Events
@@ -162,17 +192,20 @@ export default function MyRegistrationsPage() {
           </Card>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {registrations.map((reg, index) => (
+            {filteredRegistrations.map((reg, index) => (
               <div
                 key={reg.registration_id}
                 className="animate-fade-in"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
-                <Card className="h-full flex flex-col" decorative>
+                <Card className="h-full flex flex-col hover-lift" decorative variant="interactive">
                   {/* Status Badge */}
-                  <div className="mb-4">
-                    <span className={getStatusBadge(reg.status)}>
+                  <div className="mb-4 flex justify-between items-start">
+                    <Badge variant={getStatusVariant(reg.status)}>
                       {getStatusText(reg.status)}
+                    </Badge>
+                    <span className="text-[10px] font-mono text-nier-muted">
+                      #{reg.registration_id}
                     </span>
                   </div>
 
@@ -194,13 +227,10 @@ export default function MyRegistrationsPage() {
                     <p className="flex items-center gap-2">
                       <span>📍</span> {reg.tempat}
                     </p>
-                    <p className="text-xs italic mt-2">
-                      Registered: {new Date(reg.registered_at).toLocaleDateString("id-ID")}
-                    </p>
                   </div>
 
                   {/* Actions */}
-                  <div className="space-y-2 mt-auto">
+                  <div className="space-y-2 mt-auto pt-4 border-t border-nier-border/30">
                     <Button
                       variant="outline"
                       size="sm"

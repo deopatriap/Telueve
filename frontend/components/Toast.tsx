@@ -76,13 +76,13 @@ function ToastContainer({
   const getStyles = (type: ToastType) => {
     switch (type) {
       case "success":
-        return "border-l-green-700";
+        return "border-l-nier-success bg-nier-success/10 text-nier-dark";
       case "error":
-        return "border-l-red-700";
+        return "border-l-nier-error bg-nier-error/10 text-nier-dark";
       case "warning":
-        return "border-l-yellow-700";
+        return "border-l-nier-warning bg-nier-warning/10 text-nier-dark";
       default:
-        return "border-l-nier-dark";
+        return "border-l-nier-dark bg-nier-sand/10 text-nier-dark";
     }
   };
 
@@ -93,9 +93,9 @@ function ToastContainer({
           key={toast.id}
           className={`
             px-6 py-4 min-w-[300px] max-w-[400px]
-            bg-nier-cream border border-nier-border border-l-4
+            border border-nier-border border-l-4
             shadow-lg text-sm
-            animate-slide-up cursor-pointer
+            animate-slide-up cursor-pointer backdrop-blur-md
             ${getStyles(toast.type)}
           `}
           onClick={() => removeToast(toast.id)}

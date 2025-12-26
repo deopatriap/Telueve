@@ -4,7 +4,7 @@ interface CardProps {
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
-  variant?: "default" | "elevated" | "bordered";
+  variant?: "default" | "elevated" | "bordered" | "interactive";
   decorative?: boolean;
 }
 
@@ -17,12 +17,14 @@ export default function Card({
 }: CardProps) {
   const baseStyles = `
     bg-nier-cream p-6 transition-all duration-300 relative
+    border border-nier-border
   `;
 
   const variantStyles = {
-    default: "border border-nier-border shadow-md hover:shadow-lg hover:-translate-y-0.5",
-    elevated: "shadow-lg hover:shadow-xl",
+    default: "shadow-sm border-nier-border/50",
+    elevated: "shadow-lg hover:shadow-xl translate-y-0 hover:-translate-y-1 bg-white/50 backdrop-blur-sm",
     bordered: "border-2 border-nier-dark",
+    interactive: "hover:border-nier-dark hover:bg-white cursor-pointer active:scale-[0.99] hover:-translate-y-1 hover:shadow-lg transition-all duration-300",
   };
 
   const clickableStyles = onClick ? "cursor-pointer" : "";
@@ -37,17 +39,23 @@ export default function Card({
         <div className="absolute inset-1 border border-nier-border opacity-50 pointer-events-none" />
       )}
 
-      {/* Corner decorations */}
+      {/* Nier Corner decorations */}
       {decorative && (
         <>
-          <div className="absolute top-0 left-0 w-3 h-3 border-l border-t border-nier-dark" />
-          <div className="absolute top-0 right-0 w-3 h-3 border-r border-t border-nier-dark" />
-          <div className="absolute bottom-0 left-0 w-3 h-3 border-l border-b border-nier-dark" />
-          <div className="absolute bottom-0 right-0 w-3 h-3 border-r border-b border-nier-dark" />
+          <div className="absolute top-0 left-0 w-2 h-2 bg-nier-dark" />
+          <div className="absolute top-0 right-0 w-2 h-2 bg-nier-dark" />
+          <div className="absolute bottom-0 left-0 w-2 h-2 bg-nier-dark" />
+          <div className="absolute bottom-0 right-0 w-2 h-2 bg-nier-dark" />
+
+          {/* Connecting lines */}
+          <div className="absolute top-1 left-1 right-1 h-[1px] bg-nier-dark/20" />
+          <div className="absolute bottom-1 left-1 right-1 h-[1px] bg-nier-dark/20" />
         </>
       )}
 
-      {children}
+      <div className="relative z-10">
+        {children}
+      </div>
     </div>
   );
 }

@@ -122,3 +122,43 @@ export const getEventsByOrganizer = async (created_by) => {
   const result = await pool.query(query, [created_by]);
   return result.rows;
 };
+
+// Search Events
+export const searchEvent = async (queryTerm) => {
+  const query = `
+    SELECT e.*, 
+           u.nama as organizer_name
+    FROM events e
+    LEFT JOIN users u ON e.created_by = u.id
+    WHERE e.nama_event ILIKE $1 OR e.deskripsi ILIKE $1
+    ORDER BY e.created_at DESC
+  `;
+  const result = await pool.query(query, [`%${queryTerm}%`]);
+  return result.rows;
+};
+
+// Get Events Paginated
+export const getEventsPaginated = async (page = 1, limit = 10) => {
+  const offset = (page - 1) * limit;
+
+  const query = `
+    SELECT e.*, 
+           u.nama as organizer_name
+    FROM events e
+    LEFT JOIN users u ON e.created_by = u.id
+    ORDER BY e.created_at DESC
+    LIMIT $1 OFFSET $2
+  `;
+
+  const countQuery = `SELECT COUNT(*) FROM events`;
+
+  const [eventsRes, countRes] = await Promise.all([
+    pool.query(query, [limit, offset]),
+    pool.query(countQuery)
+  ]);
+
+  return {
+    rows: eventsRes.rows,
+    total: parseInt(countRes.rows[0].count) || 0
+  };
+};

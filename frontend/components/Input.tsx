@@ -48,10 +48,10 @@ export default function Input({
         disabled={disabled}
         className={`
           w-full px-0 py-3 text-nier-dark
-          bg-transparent border-b border-nier-border
+          bg-transparent border-b-2 border-nier-border
           focus:outline-none focus:border-nier-dark
-          transition-colors duration-200
-          placeholder:text-nier-muted placeholder:italic
+          transition-all duration-300 ease-out
+          placeholder:text-nier-muted placeholder:italic placeholder:transition-opacity focus:placeholder:opacity-50
           disabled:opacity-50 disabled:cursor-not-allowed
           ${error ? "border-red-700 focus:border-red-700" : ""}
           ${className}

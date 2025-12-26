@@ -16,8 +16,8 @@ const pgPool = new Pool({
 let activePool = pgPool;
 let isPostgresConnected = false;
 
-// Attempt PG connection
-pgPool.connect()
+// Promise to track connection attempt
+const connectionPromise = pgPool.connect()
   .then((client) => {
     console.log("✅ Connected to PostgreSQL");
     isPostgresConnected = true;
@@ -25,12 +25,16 @@ pgPool.connect()
   })
   .catch((err) => {
     console.warn("⚠️  PostgreSQL connection failed. Falling back to SQLite.");
-    console.warn("   Error:", err.message);
+    // console.warn("   Error:", err.message); // Too verbose
     activePool = sqlitePool;
   });
 
 // Export a proxy object that delegates to the active pool
 export default {
-  query: (text, params) => activePool.query(text, params),
-  connect: () => isPostgresConnected ? pgPool.connect() : Promise.resolve(),
+  query: async (text, params) => {
+    // Ensure we know which pool to use
+    await connectionPromise;
+    return activePool.query(text, params);
+  },
+  connect: () => connectionPromise.then(() => isPostgresConnected ? pgPool.connect() : Promise.resolve()),
 };
