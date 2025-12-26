@@ -1,9 +1,11 @@
+import React from "react";
 import type { Metadata } from "next";
 import "./globals.css";
+import { Providers } from "@/components/Providers";
 
 export const metadata: Metadata = {
-  title: "Event Campus",
-  description: "Event management application",
+  title: "Telueve | Event Campus",
+  description: "University event management platform",
 };
 
 export default function RootLayout({
@@ -13,8 +15,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">
-        {children}
+      <body className="antialiased min-h-screen">
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );

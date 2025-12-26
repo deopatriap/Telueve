@@ -10,6 +10,8 @@ interface InputProps {
   label?: string;
   error?: string;
   required?: boolean;
+  name?: string;
+  id?: string;
 }
 
 export default function Input({
@@ -22,26 +24,44 @@ export default function Input({
   label,
   error,
   required = false,
+  name,
+  id,
 }: InputProps) {
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label
+          htmlFor={id}
+          className="block text-xs uppercase tracking-widest text-nier-muted mb-2"
+        >
           {label}
-          {required && <span className="text-red-500">*</span>}
+          {required && <span className="text-red-700 ml-1">*</span>}
         </label>
       )}
       <input
         type={type}
+        id={id}
+        name={name}
         placeholder={placeholder}
         value={value}
         onChange={onChange}
         disabled={disabled}
-        className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 ${
-          error ? "border-red-500 focus:ring-red-500" : ""
-        } ${disabled ? "bg-gray-100 dark:bg-gray-800 cursor-not-allowed" : ""} ${className}`}
+        className={`
+          w-full px-0 py-3 text-nier-dark
+          bg-transparent border-b border-nier-border
+          focus:outline-none focus:border-nier-dark
+          transition-colors duration-200
+          placeholder:text-nier-muted placeholder:italic
+          disabled:opacity-50 disabled:cursor-not-allowed
+          ${error ? "border-red-700 focus:border-red-700" : ""}
+          ${className}
+        `}
       />
-      {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+      {error && (
+        <p className="mt-2 text-xs text-red-700 italic">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

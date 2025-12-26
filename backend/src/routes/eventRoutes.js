@@ -9,6 +9,7 @@ import {
   searchEvents
 } from '../controllers/eventController.js';
 import { verifyToken, isAdmin, isOrganizer } from '../middleware/authMiddleware.js';
+import { validate, createEventSchema, updateEventSchema } from '../middleware/validation.js';
 
 const router = express.Router();
 
@@ -33,10 +34,10 @@ router.get('/:id', getEventById);
 // ========================================
 
 // Create new event (organizer/admin only)
-router.post('/', verifyToken, isOrganizer, createEvent);
+router.post('/', verifyToken, isOrganizer, validate(createEventSchema), createEvent);
 
 // Update event (organizer/admin only)
-router.put('/:id', verifyToken, isOrganizer, updateEvent);
+router.put('/:id', verifyToken, isOrganizer, validate(updateEventSchema), updateEvent);
 
 // Delete event (organizer/admin only)
 router.delete('/:id', verifyToken, isOrganizer, deleteEvent);

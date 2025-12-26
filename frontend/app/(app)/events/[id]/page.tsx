@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { eventAPI, registrationAPI } from "@/lib/api";
+import Card from "@/components/Card";
+import Button from "@/components/Button";
+import { EventDetailSkeleton } from "@/components/Skeleton";
+import { useToast } from "@/components/Toast";
 
 interface Event {
   id: number;
@@ -15,6 +19,8 @@ interface Event {
   kuota_peserta: number | null;
   created_by: number;
   created_at: string;
+  organizer_name?: string;
+  total_registrations?: number;
 }
 
 interface Registration {
@@ -26,6 +32,7 @@ interface Registration {
 export default function EventDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const { showToast } = useToast();
   const eventId = parseInt(params?.id as string);
 
   const [event, setEvent] = useState<Event | null>(null);
@@ -35,13 +42,11 @@ export default function EventDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  // Check if user is logged in
   useEffect(() => {
     const token = localStorage.getItem("token");
     setIsLoggedIn(!!token);
   }, []);
 
-  // Fetch event detail
   useEffect(() => {
     const fetchEventDetail = async () => {
       try {
@@ -49,9 +54,9 @@ export default function EventDetailPage() {
         if (response.success) {
           setEvent(response.data);
         }
-      } catch (error: any) {
+      } catch (error) {
         console.error("Error fetching event:", error);
-        alert(error.response?.data?.message || "Gagal memuat detail event");
+        showToast("Failed to load event details", "error");
       } finally {
         setLoading(false);
       }
@@ -60,9 +65,8 @@ export default function EventDetailPage() {
     if (eventId) {
       fetchEventDetail();
     }
-  }, [eventId]);
+  }, [eventId, showToast]);
 
-  // Check registration status
   useEffect(() => {
     const checkRegistrationStatus = async () => {
       if (!isLoggedIn || !eventId) return;
@@ -73,7 +77,7 @@ export default function EventDetailPage() {
           setIsRegistered(response.isRegistered);
           setRegistration(response.registration);
         }
-      } catch (error: any) {
+      } catch (error) {
         console.error("Error checking registration:", error);
       }
     };
@@ -81,253 +85,258 @@ export default function EventDetailPage() {
     checkRegistrationStatus();
   }, [eventId, isLoggedIn]);
 
-  // Handle register for event
   const handleRegister = async () => {
     if (!isLoggedIn) {
-      alert("Silakan login terlebih dahulu!");
+      showToast("Please login to register", "warning");
       router.push("/login");
       return;
     }
 
     if (isRegistered) {
-      alert("Anda sudah terdaftar di event ini!");
+      showToast("You are already registered for this event", "warning");
       return;
     }
-
-    const confirm = window.confirm(
-      `Apakah Anda yakin ingin mendaftar di event "${event?.nama_event}"?`
-    );
-
-    if (!confirm) return;
 
     setActionLoading(true);
     try {
       const response = await registrationAPI.register(eventId);
 
       if (response.success) {
-        alert(response.message || "Berhasil mendaftar! Menunggu konfirmasi organizer.");
-        
-        // Refresh registration status
+        showToast("Registration successful! Awaiting confirmation.", "success");
+
         const status = await registrationAPI.checkRegistration(eventId);
         setIsRegistered(status.isRegistered);
         setRegistration(status.registration);
       }
-    } catch (error: any) {
-      const errorMsg = error.response?.data?.message || "Gagal mendaftar event";
-      alert(errorMsg);
+    } catch (error) {
       console.error("Registration error:", error);
+      showToast("Failed to register", "error");
     } finally {
       setActionLoading(false);
     }
   };
 
-  // Handle cancel registration
   const handleCancelRegistration = async () => {
-    if (!isRegistered) {
-      alert("Anda belum terdaftar di event ini!");
-      return;
-    }
-
-    const confirm = window.confirm(
-      "Apakah Anda yakin ingin membatalkan pendaftaran?"
-    );
-
-    if (!confirm) return;
+    if (!isRegistered) return;
 
     setActionLoading(true);
     try {
       const response = await registrationAPI.cancelRegistration(eventId);
 
       if (response.success) {
-        alert(response.message || "Pendaftaran berhasil dibatalkan");
-        
-        // Reset registration status
+        showToast("Registration cancelled", "success");
         setIsRegistered(false);
         setRegistration(null);
       }
-    } catch (error: any) {
-      const errorMsg = error.response?.data?.message || "Gagal membatalkan pendaftaran";
-      alert(errorMsg);
+    } catch (error) {
       console.error("Cancel error:", error);
+      showToast("Failed to cancel registration", "error");
     } finally {
       setActionLoading(false);
     }
   };
 
-  // Format date
   const formatDate = (dateString: string) => {
+    if (!dateString) return "TBA";
     const date = new Date(dateString);
     return date.toLocaleDateString("id-ID", {
+      weekday: "long",
       day: "numeric",
       month: "long",
       year: "numeric",
     });
   };
 
-  // Get status badge color
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
-        return "bg-yellow-100 text-yellow-800";
+        return "badge badge-pending";
       case "accepted":
-        return "bg-green-100 text-green-800";
+        return "badge badge-accepted";
       case "rejected":
-        return "bg-red-100 text-red-800";
+        return "badge badge-rejected";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "badge";
     }
   };
 
-  // Get status text
   const getStatusText = (status: string) => {
     switch (status) {
       case "pending":
-        return "Menunggu Konfirmasi";
+        return "Awaiting Confirmation";
       case "accepted":
-        return "Diterima";
+        return "Accepted";
       case "rejected":
-        return "Ditolak";
+        return "Rejected";
       default:
         return status;
     }
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="text-xl">Loading...</div>
-      </div>
-    );
+    return <EventDetailSkeleton />;
   }
 
   if (!event) {
     return (
-      <div className="flex flex-col justify-center items-center min-h-screen">
-        <h1 className="text-2xl font-bold mb-4">Event tidak ditemukan</h1>
-        <button
-          onClick={() => router.push("/events")}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          Kembali ke Daftar Event
-        </button>
+      <div className="min-h-screen bg-nier-cream flex flex-col items-center justify-center">
+        <Card className="max-w-md text-center" decorative>
+          <h2 className="text-xl uppercase tracking-widest mb-4">
+            Event Not Found
+          </h2>
+          <p className="text-nier-muted italic mb-6">
+            The event you are looking for does not exist or has been removed.
+          </p>
+          <Button onClick={() => router.push("/events")}>
+            Back to Events
+          </Button>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      {/* Event Header */}
-      <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-        <h1 className="text-3xl font-bold mb-4">{event.nama_event}</h1>
-        
-        <div className="space-y-3 text-gray-700">
-          <div className="flex items-center">
-            <span className="font-semibold w-32">📅 Tanggal:</span>
-            <span>{formatDate(event.tanggal_event)}</span>
-          </div>
-          
-          <div className="flex items-center">
-            <span className="font-semibold w-32">⏰ Waktu:</span>
-            <span>{event.jam_mulai} - {event.jam_selesai}</span>
-          </div>
-          
-          <div className="flex items-center">
-            <span className="font-semibold w-32">📍 Tempat:</span>
-            <span>{event.tempat}</span>
-          </div>
-          
-          {event.kuota_peserta && (
-            <div className="flex items-center">
-              <span className="font-semibold w-32">👥 Kuota:</span>
-              <span>{event.kuota_peserta} peserta</span>
-            </div>
-          )}
+    <div className="min-h-screen bg-nier-cream">
+      {/* Header */}
+      <header className="border-b border-nier-border">
+        <div className="max-w-4xl mx-auto px-6 py-4">
+          <button
+            onClick={() => router.push("/events")}
+            className="text-sm uppercase tracking-widest text-nier-muted hover:text-nier-dark transition-colors"
+          >
+            ← Back to Events
+          </button>
         </div>
-      </div>
+      </header>
 
-      {/* Event Description */}
-      <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-        <h2 className="text-xl font-bold mb-3">Deskripsi Event</h2>
-        <p className="text-gray-700 whitespace-pre-wrap">{event.deskripsi}</p>
-      </div>
+      {/* Main Content */}
+      <main className="max-w-4xl mx-auto px-6 py-12 space-y-8 animate-fade-in">
+        {/* Event Header Card */}
+        <Card decorative>
+          <h1 className="text-2xl uppercase tracking-widest mb-6">
+            {event.nama_event}
+          </h1>
 
-      {/* Registration Status & Actions */}
-      {isLoggedIn ? (
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          {isRegistered ? (
-            <div className="space-y-4">
-              {/* Status Badge */}
-              <div className="flex items-center justify-between">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <span className="text-nier-muted w-6">📅</span>
                 <div>
-                  <p className="text-lg font-semibold mb-2">Status Pendaftaran</p>
-                  <span
-                    className={`px-4 py-2 rounded-full text-sm font-medium ${getStatusBadge(
-                      registration?.status || ""
-                    )}`}
-                  >
-                    {getStatusText(registration?.status || "")}
-                  </span>
+                  <div className="text-xs uppercase tracking-widest text-nier-muted">Date</div>
+                  <div>{formatDate(event.tanggal_event)}</div>
                 </div>
               </div>
 
-              {/* Registration Info */}
-              <div className="border-t pt-4">
-                <p className="text-sm text-gray-600">
-                  Terdaftar pada: {registration?.registered_at ? new Date(registration.registered_at).toLocaleString("id-ID") : "-"}
-                </p>
+              <div className="flex items-center gap-3">
+                <span className="text-nier-muted w-6">⏰</span>
+                <div>
+                  <div className="text-xs uppercase tracking-widest text-nier-muted">Time</div>
+                  <div>{event.jam_mulai || "TBA"} - {event.jam_selesai || "TBA"}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <span className="text-nier-muted w-6">📍</span>
+                <div>
+                  <div className="text-xs uppercase tracking-widest text-nier-muted">Location</div>
+                  <div>{event.tempat}</div>
+                </div>
               </div>
 
-              {/* Cancel Button (only if pending) */}
-              {registration?.status === "pending" && (
-                <button
-                  onClick={handleCancelRegistration}
-                  disabled={actionLoading}
-                  className="w-full px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
-                >
-                  {actionLoading ? "Membatalkan..." : "Batalkan Pendaftaran"}
-                </button>
+              {event.kuota_peserta && (
+                <div className="flex items-center gap-3">
+                  <span className="text-nier-muted w-6">👥</span>
+                  <div>
+                    <div className="text-xs uppercase tracking-widest text-nier-muted">Capacity</div>
+                    <div>{event.total_registrations || 0} / {event.kuota_peserta}</div>
+                  </div>
+                </div>
               )}
             </div>
+          </div>
+        </Card>
+
+        {/* Description Card */}
+        <Card>
+          <h2 className="text-lg uppercase tracking-widest mb-4">
+            Description
+          </h2>
+          <p className="text-nier-dark whitespace-pre-wrap leading-relaxed">
+            {event.deskripsi || "No description available."}
+          </p>
+        </Card>
+
+        {/* Registration Card */}
+        <Card decorative>
+          {isLoggedIn ? (
+            isRegistered ? (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg uppercase tracking-widest mb-2">
+                      Registration Status
+                    </h3>
+                    <span className={getStatusBadge(registration?.status || "")}>
+                      {getStatusText(registration?.status || "")}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="border-t border-nier-border pt-4">
+                  <p className="text-xs text-nier-muted">
+                    Registered on: {registration?.registered_at ? new Date(registration.registered_at).toLocaleDateString("id-ID") : "-"}
+                  </p>
+                </div>
+
+                {registration?.status === "pending" && (
+                  <Button
+                    variant="danger"
+                    onClick={handleCancelRegistration}
+                    loading={actionLoading}
+                    className="w-full"
+                  >
+                    Cancel Registration
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg uppercase tracking-widest mb-2">
+                    Register for This Event
+                  </h3>
+                  <p className="text-sm text-nier-muted italic">
+                    Click the button below to register. Your registration will await organizer confirmation.
+                  </p>
+                </div>
+                <Button
+                  onClick={handleRegister}
+                  loading={actionLoading}
+                  className="w-full"
+                >
+                  Register Now
+                </Button>
+              </div>
+            )
           ) : (
-            <div className="space-y-4">
-              <p className="text-lg font-semibold">Daftar Event Ini</p>
-              <p className="text-gray-600">
-                Klik tombol di bawah untuk mendaftar. Pendaftaran akan menunggu konfirmasi dari organizer.
-              </p>
-              <button
-                onClick={handleRegister}
-                disabled={actionLoading}
-                className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition font-semibold"
-              >
-                {actionLoading ? "Mendaftar..." : "Daftar Sekarang"}
-              </button>
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg uppercase tracking-widest mb-2">
+                  Login Required
+                </h3>
+                <p className="text-sm text-nier-muted italic">
+                  Please login to register for this event.
+                </p>
+              </div>
+              <Button onClick={() => router.push("/login")} className="w-full">
+                Login to Register
+              </Button>
             </div>
           )}
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <p className="text-lg font-semibold mb-4">Login untuk Mendaftar</p>
-          <p className="text-gray-600 mb-4">
-            Anda harus login terlebih dahulu untuk mendaftar event ini.
-          </p>
-          <button
-            onClick={() => router.push("/login")}
-            className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
-          >
-            Login Sekarang
-          </button>
-        </div>
-      )}
-
-      {/* Back Button */}
-      <div className="mt-6">
-        <button
-          onClick={() => router.push("/events")}
-          className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
-        >
-          ← Kembali ke Daftar Event
-        </button>
-      </div>
+        </Card>
+      </main>
     </div>
   );
 }

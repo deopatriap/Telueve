@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { registrationAPI } from "@/lib/api";
+import Card from "@/components/Card";
+import Button from "@/components/Button";
+import { Skeleton } from "@/components/Skeleton";
+import { useToast } from "@/components/Toast";
 
 interface MyRegistration {
   registration_id: number;
@@ -20,6 +24,7 @@ interface MyRegistration {
 
 export default function MyRegistrationsPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [registrations, setRegistrations] = useState<MyRegistration[]>([]);
   const [loading, setLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -40,34 +45,29 @@ export default function MyRegistrationsPage() {
       if (response.success) {
         setRegistrations(response.data);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error fetching registrations:", error);
-      alert(error.response?.data?.message || "Gagal memuat data registrasi");
+      showToast("Failed to load registrations", "error");
     } finally {
       setLoading(false);
     }
   };
 
   const handleCancelRegistration = async (eventId: number, eventName: string) => {
-    const confirm = window.confirm(
-      `Apakah Anda yakin ingin membatalkan pendaftaran di event "${eventName}"?`
-    );
-
-    if (!confirm) return;
-
     try {
       const response = await registrationAPI.cancelRegistration(eventId);
       if (response.success) {
-        alert(response.message || "Pendaftaran berhasil dibatalkan");
-        // Refresh list
+        showToast(`Registration for "${eventName}" cancelled`, "success");
         fetchMyRegistrations();
       }
-    } catch (error: any) {
-      alert(error.response?.data?.message || "Gagal membatalkan pendaftaran");
+    } catch (error) {
+      console.error("Cancel error:", error);
+      showToast("Failed to cancel registration", "error");
     }
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return "TBA";
     const date = new Date(dateString);
     return date.toLocaleDateString("id-ID", {
       day: "numeric",
@@ -79,24 +79,24 @@ export default function MyRegistrationsPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
-        return "bg-yellow-100 text-yellow-800";
+        return "badge badge-pending";
       case "accepted":
-        return "bg-green-100 text-green-800";
+        return "badge badge-accepted";
       case "rejected":
-        return "bg-red-100 text-red-800";
+        return "badge badge-rejected";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "badge";
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
       case "pending":
-        return "⏳ Menunggu Konfirmasi";
+        return "⏳ Pending";
       case "accepted":
-        return "✅ Diterima";
+        return "✓ Accepted";
       case "rejected":
-        return "❌ Ditolak";
+        return "✕ Rejected";
       default:
         return status;
     }
@@ -104,8 +104,19 @@ export default function MyRegistrationsPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="text-xl">Loading...</div>
+      <div className="min-h-screen bg-nier-cream">
+        <header className="border-b border-nier-border">
+          <div className="max-w-6xl mx-auto px-6 py-4">
+            <Skeleton className="h-6 w-48" />
+          </div>
+        </header>
+        <main className="max-w-6xl mx-auto p-6">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} variant="card" />
+            ))}
+          </div>
+        </main>
       </div>
     );
   }
@@ -115,93 +126,107 @@ export default function MyRegistrationsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">Pendaftaran Saya</h1>
-        <p className="text-gray-600">
-          Daftar event yang telah Anda daftarkan
-        </p>
-      </div>
-
-      {registrations.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-          <p className="text-gray-500 text-lg mb-4">
-            Anda belum mendaftar di event apapun
-          </p>
+    <div className="min-h-screen bg-nier-cream">
+      {/* Header */}
+      <header className="border-b border-nier-border">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <button
-            onClick={() => router.push("/")}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            onClick={() => router.push("/events")}
+            className="text-sm uppercase tracking-widest text-nier-muted hover:text-nier-dark transition-colors"
           >
-            Lihat Daftar Event
+            ← Back to Events
           </button>
         </div>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {registrations.map((reg) => (
-            <div
-              key={reg.registration_id}
-              className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition"
-            >
-              {/* Status Badge */}
-              <div className="flex justify-between items-start mb-4">
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(
-                    reg.status
-                  )}`}
-                >
-                  {getStatusText(reg.status)}
-                </span>
-              </div>
+      </header>
 
-              {/* Event Info */}
-              <h3
-                className="text-xl font-bold mb-2 cursor-pointer hover:text-blue-600"
-                onClick={() => router.push(`/events/${reg.event_id}`)}
-              >
-                {reg.nama_event}
-              </h3>
-
-              <div className="space-y-2 text-sm text-gray-600 mb-4">
-                <p>📅 {formatDate(reg.tanggal_event)}</p>
-                <p>⏰ {reg.jam_mulai}</p>
-                <p>📍 {reg.tempat}</p>
-                <p className="text-xs text-gray-500">
-                  Terdaftar: {new Date(reg.registered_at).toLocaleDateString("id-ID")}
-                </p>
-              </div>
-
-              {/* Actions */}
-              <div className="space-y-2">
-                <button
-                  onClick={() => router.push(`/events/${reg.event_id}`)}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm"
-                >
-                  Lihat Detail
-                </button>
-
-                {reg.status === "pending" && (
-                  <button
-                    onClick={() => handleCancelRegistration(reg.event_id, reg.nama_event)}
-                    className="w-full px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition text-sm"
-                  >
-                    Batalkan Pendaftaran
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+      {/* Main Content */}
+      <main className="max-w-6xl mx-auto px-6 py-12">
+        {/* Page Header */}
+        <div className="mb-10 text-center">
+          <h1 className="text-2xl uppercase tracking-widest mb-2">
+            My Registrations
+          </h1>
+          <p className="text-nier-muted italic">
+            Events you have registered for
+          </p>
         </div>
-      )}
 
-      {/* Back Button */}
-      <div className="mt-8">
-        <button
-          onClick={() => router.push("/")}
-          className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
-        >
-          ← Kembali ke Beranda
-        </button>
-      </div>
+        {registrations.length === 0 ? (
+          <Card className="max-w-md mx-auto text-center py-12" decorative>
+            <p className="text-nier-muted italic mb-6">
+              You have not registered for any events yet
+            </p>
+            <Button onClick={() => router.push("/events")}>
+              Browse Events
+            </Button>
+          </Card>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {registrations.map((reg, index) => (
+              <div
+                key={reg.registration_id}
+                className="animate-fade-in"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <Card className="h-full flex flex-col" decorative>
+                  {/* Status Badge */}
+                  <div className="mb-4">
+                    <span className={getStatusBadge(reg.status)}>
+                      {getStatusText(reg.status)}
+                    </span>
+                  </div>
+
+                  {/* Event Info */}
+                  <h3
+                    className="text-lg uppercase tracking-wide mb-4 cursor-pointer hover:text-nier-accent transition-colors"
+                    onClick={() => router.push(`/events/${reg.event_id}`)}
+                  >
+                    {reg.nama_event}
+                  </h3>
+
+                  <div className="space-y-2 text-sm text-nier-muted mb-4 flex-grow">
+                    <p className="flex items-center gap-2">
+                      <span>📅</span> {formatDate(reg.tanggal_event)}
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <span>⏰</span> {reg.jam_mulai || "TBA"}
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <span>📍</span> {reg.tempat}
+                    </p>
+                    <p className="text-xs italic mt-2">
+                      Registered: {new Date(reg.registered_at).toLocaleDateString("id-ID")}
+                    </p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="space-y-2 mt-auto">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push(`/events/${reg.event_id}`)}
+                      className="w-full"
+                    >
+                      View Details
+                    </Button>
+
+                    {reg.status === "pending" && (
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => handleCancelRegistration(reg.event_id, reg.nama_event)}
+                        className="w-full"
+                      >
+                        Cancel
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
     </div>
   );
 }

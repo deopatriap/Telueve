@@ -82,8 +82,8 @@ export const deleteEvent = async (event_id) => {
 export const getAllEvents = async () => {
   const query = `
     SELECT e.*, 
-           u.username as organizer_name,
-           u.nama_lengkap as organizer_full_name
+           u.nama as organizer_name,
+           u.nama as organizer_full_name
     FROM events e
     LEFT JOIN users u ON e.created_by = u.id
     ORDER BY e.created_at DESC
@@ -96,8 +96,8 @@ export const getAllEvents = async () => {
 export const getEventById = async (event_id) => {
   const query = `
     SELECT e.*, 
-           u.username as organizer_name,
-           u.nama_lengkap as organizer_full_name,
+           u.nama as organizer_name,
+           u.nama as organizer_full_name,
            u.email as organizer_email
     FROM events e
     LEFT JOIN users u ON e.created_by = u.id

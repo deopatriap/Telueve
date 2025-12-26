@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { eventAPI } from "@/lib/api";
+import Card from "@/components/Card";
+import Button from "@/components/Button";
+import { EventCardSkeleton } from "@/components/Skeleton";
 
 interface Event {
   id: number;
@@ -23,7 +26,6 @@ export default function EventsListPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
 
-  // Fetch all events
   useEffect(() => {
     const fetchEvents = async () => {
       try {
@@ -32,9 +34,8 @@ export default function EventsListPage() {
           setEvents(response.data);
           setFilteredEvents(response.data);
         }
-      } catch (error: any) {
+      } catch (error) {
         console.error("Error fetching events:", error);
-        alert(error.response?.data?.message || "Gagal memuat daftar event");
       } finally {
         setLoading(false);
       }
@@ -43,22 +44,21 @@ export default function EventsListPage() {
     fetchEvents();
   }, []);
 
-  // Filter events based on search query
   useEffect(() => {
     if (searchQuery.trim() === "") {
       setFilteredEvents(events);
     } else {
       const filtered = events.filter((event) =>
-        event.nama_event.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.deskripsi.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.tempat.toLowerCase().includes(searchQuery.toLowerCase())
+        event.nama_event?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        event.deskripsi?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        event.tempat?.toLowerCase().includes(searchQuery.toLowerCase())
       );
       setFilteredEvents(filtered);
     }
   }, [searchQuery, events]);
 
-  // Format date
   const formatDate = (dateString: string) => {
+    if (!dateString) return "TBA";
     const date = new Date(dateString);
     return date.toLocaleDateString("id-ID", {
       weekday: "long",
@@ -68,119 +68,159 @@ export default function EventsListPage() {
     });
   };
 
-  // Handle view detail (untuk daftar event)
   const handleViewDetail = (eventId: number) => {
     router.push(`/events/${eventId}`);
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="text-xl font-semibold">Memuat event...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div className="min-h-screen bg-nier-cream">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Jelajahi Event Kampus</h1>
-        <p className="text-gray-600 text-lg">
-          Temukan dan ikuti event menarik di kampus Anda
-        </p>
-      </div>
-
-      {/* Search Bar */}
-      <div className="mb-6">
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="🔍 Cari event..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-      </div>
-
-      {/* Events List */}
-      {filteredEvents.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-lg p-12 text-center">
-          <p className="text-gray-500 text-lg mb-2">
-            {searchQuery ? "Tidak ada event yang sesuai dengan pencarian" : "Belum ada event tersedia"}
-          </p>
-          {searchQuery && (
+      <header className="border-b border-nier-border bg-nier-cream/80 backdrop-blur-sm sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <h1
+            className="text-xl uppercase tracking-widest cursor-pointer hover:text-nier-accent transition-colors"
+            onClick={() => router.push("/")}
+          >
+            Telueve
+          </h1>
+          <nav className="flex items-center gap-6">
             <button
-              onClick={() => setSearchQuery("")}
-              className="text-blue-600 hover:underline"
+              onClick={() => router.push("/my-registrations")}
+              className="text-sm uppercase tracking-widest text-nier-muted hover:text-nier-dark transition-colors"
             >
-              Tampilkan semua event
+              My Registrations
             </button>
-          )}
+            <Button variant="outline" size="sm" onClick={() => router.push("/login")}>
+              Login
+            </Button>
+          </nav>
         </div>
-      ) : (
-        <>
-          <div className="mb-4 text-gray-600">
-            Menampilkan {filteredEvents.length} dari {events.length} event
-          </div>
+      </header>
 
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredEvents.map((event) => (
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-6 py-12">
+        {/* Page Header */}
+        <div className="mb-12 text-center">
+          <h2 className="text-3xl uppercase tracking-widest mb-4">
+            Discover Events
+          </h2>
+          <p className="text-nier-muted italic max-w-xl mx-auto">
+            Find and join exciting events happening at your campus
+          </p>
+        </div>
+
+        {/* Search Bar */}
+        <div className="mb-10 max-w-xl mx-auto">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search events..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-4 py-4 text-nier-dark bg-transparent border border-nier-border focus:outline-none focus:border-nier-dark transition-colors placeholder:text-nier-muted placeholder:italic"
+            />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-nier-muted">
+              ⌕
+            </span>
+          </div>
+        </div>
+
+        {/* Results Count */}
+        {!loading && (
+          <div className="mb-6 text-center text-sm text-nier-muted uppercase tracking-widest">
+            {filteredEvents.length} of {events.length} events
+          </div>
+        )}
+
+        {/* Events Grid */}
+        {loading ? (
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <EventCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : filteredEvents.length === 0 ? (
+          <Card className="max-w-md mx-auto text-center py-12" decorative>
+            <p className="text-nier-muted italic mb-6">
+              {searchQuery ? "No events match your search" : "No events available"}
+            </p>
+            {searchQuery && (
+              <Button variant="outline" onClick={() => setSearchQuery("")}>
+                Clear Search
+              </Button>
+            )}
+          </Card>
+        ) : (
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {filteredEvents.map((event, index) => (
               <div
                 key={event.id}
-                className="bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden cursor-pointer"
-                onClick={() => handleViewDetail(event.id)}
+                className="animate-fade-in"
+                style={{ animationDelay: `${index * 50}ms` }}
               >
-                {/* Event Header */}
-                <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6">
-                  <h3 className="text-xl font-bold mb-2">{event.nama_event}</h3>
-                  <p className="text-blue-100 text-sm">
-                    {formatDate(event.tanggal_event)}
-                  </p>
-                </div>
+                <Card
+                  onClick={() => handleViewDetail(event.id)}
+                  className="h-full flex flex-col group"
+                  decorative
+                >
+                  {/* Event Title */}
+                  <h3 className="text-lg uppercase tracking-wide mb-4 group-hover:text-nier-accent transition-colors">
+                    {event.nama_event}
+                  </h3>
 
-                {/* Event Body */}
-                <div className="p-6">
-                  <div className="space-y-3 mb-4">
-                    <div className="flex items-center text-gray-700">
-                      <span className="mr-2">⏰</span>
-                      <span>{event.jam_mulai} - {event.jam_selesai}</span>
+                  {/* Event Details */}
+                  <div className="space-y-2 mb-4 text-sm text-nier-muted">
+                    <div className="flex items-center gap-2">
+                      <span className="w-4">📅</span>
+                      <span>{formatDate(event.tanggal_event)}</span>
                     </div>
-                    
-                    <div className="flex items-center text-gray-700">
-                      <span className="mr-2">📍</span>
+                    <div className="flex items-center gap-2">
+                      <span className="w-4">⏰</span>
+                      <span>{event.jam_mulai || "TBA"} - {event.jam_selesai || "TBA"}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-4">📍</span>
                       <span>{event.tempat}</span>
                     </div>
-                    
                     {event.kuota_peserta && (
-                      <div className="flex items-center text-gray-700">
-                        <span className="mr-2">👥</span>
-                        <span>Kuota: {event.kuota_peserta} peserta</span>
+                      <div className="flex items-center gap-2">
+                        <span className="w-4">👥</span>
+                        <span>Kuota: {event.kuota_peserta}</span>
                       </div>
                     )}
                   </div>
 
-                  <p className="text-gray-600 text-sm line-clamp-3 mb-4">
+                  {/* Description */}
+                  <p className="text-sm text-nier-muted line-clamp-3 mb-6 flex-grow italic">
                     {event.deskripsi}
                   </p>
 
-                  {/* Button - Hanya tombol Daftar */}
-                  <button
+                  {/* CTA Button */}
+                  <Button
+                    variant="primary"
+                    className="w-full"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleViewDetail(event.id);
                     }}
-                    className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
                   >
-                    Daftar
-                  </button>
-                </div>
+                    Register
+                  </Button>
+                </Card>
               </div>
             ))}
           </div>
-        </>
-      )}
+        )}
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-nier-border mt-20 py-8">
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <p className="text-xs text-nier-muted uppercase tracking-widest">
+            Telueve — Event Campus Platform
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
