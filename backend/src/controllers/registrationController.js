@@ -148,7 +148,7 @@ export const getMyRegistrations = async (req, res) => {
 
     const result = await pool.query(
       `SELECT 
-        r.registration_id,
+        r.id,
         r.status,
         r.registered_at,
         e.id as event_id,
@@ -189,7 +189,7 @@ export const checkMyRegistration = async (req, res) => {
 
     const result = await pool.query(
       `SELECT 
-        r.registration_id,
+        r.id,
         r.status,
         r.registered_at
       FROM registrations r
@@ -244,7 +244,7 @@ export const getEventRegistrations = async (req, res) => {
     // Get all registrations for this event
     const result = await pool.query(
       `SELECT 
-        r.registration_id,
+        r.id,
         r.status,
         r.registered_at,
         u.id as user_id,
@@ -292,7 +292,7 @@ export const updateRegistrationStatus = async (req, res) => {
       `SELECT r.*, e.created_by 
        FROM registrations r
        JOIN events e ON r.event_id = e.id
-       WHERE r.registration_id = $1`,
+       WHERE r.id = $1`,
       [registrationId]
     );
 
@@ -315,7 +315,7 @@ export const updateRegistrationStatus = async (req, res) => {
 
     // Update status
     await pool.query(
-      "UPDATE registrations SET status = $1 WHERE registration_id = $2",
+      "UPDATE registrations SET status = $1 WHERE id = $2",
       [status, registrationId]
     );
 
@@ -341,7 +341,7 @@ export const deleteRegistration = async (req, res) => {
 
     // Check if registration exists
     const result = await pool.query(
-      "SELECT * FROM registrations WHERE registration_id = $1",
+      "SELECT * FROM registrations WHERE id = $1",
       [registrationId]
     );
 
@@ -353,7 +353,7 @@ export const deleteRegistration = async (req, res) => {
     }
 
     // Delete registration
-    await pool.query("DELETE FROM registrations WHERE registration_id = $1", [registrationId]);
+    await pool.query("DELETE FROM registrations WHERE id = $1", [registrationId]);
 
     res.json({
       success: true,

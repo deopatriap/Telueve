@@ -10,8 +10,8 @@ export const getAllEvents = async (req, res) => {
         e.*,
         u.nama as organizer_name,
         u.email as organizer_email,
-        COUNT(DISTINCT r.registration_id) as total_registrations,
-        COUNT(DISTINCT CASE WHEN r.status = 'accepted' THEN r.registration_id END) as accepted_registrations
+        COUNT(DISTINCT r.id) as total_registrations,
+        COUNT(DISTINCT CASE WHEN r.status = 'accepted' THEN r.id END) as accepted_registrations
       FROM events e
       LEFT JOIN users u ON e.created_by = u.id
       LEFT JOIN registrations r ON e.id = r.event_id
@@ -46,8 +46,8 @@ export const getEventById = async (req, res) => {
         e.*,
         u.nama as organizer_name,
         u.email as organizer_email,
-        COUNT(DISTINCT r.registration_id) as total_registrations,
-        COUNT(DISTINCT CASE WHEN r.status = 'accepted' THEN r.registration_id END) as accepted_registrations
+        COUNT(DISTINCT r.id) as total_registrations,
+        COUNT(DISTINCT CASE WHEN r.status = 'accepted' THEN r.id END) as accepted_registrations
       FROM events e
       LEFT JOIN users u ON e.created_by = u.id
       LEFT JOIN registrations r ON e.id = r.event_id
@@ -87,8 +87,8 @@ export const getUpcomingEvents = async (req, res) => {
         e.*,
         u.nama as organizer_name,
         u.email as organizer_email,
-        COUNT(DISTINCT r.registration_id) as total_registrations,
-        COUNT(DISTINCT CASE WHEN r.status = 'accepted' THEN r.registration_id END) as accepted_registrations
+        COUNT(DISTINCT r.id) as total_registrations,
+        COUNT(DISTINCT CASE WHEN r.status = 'accepted' THEN r.id END) as accepted_registrations
       FROM events e
       LEFT JOIN users u ON e.created_by = u.id
       LEFT JOIN registrations r ON e.id = r.event_id
@@ -132,8 +132,8 @@ export const searchEvents = async (req, res) => {
         e.*,
         u.nama as organizer_name,
         u.email as organizer_email,
-        COUNT(DISTINCT r.registration_id) as total_registrations,
-        COUNT(DISTINCT CASE WHEN r.status = 'accepted' THEN r.registration_id END) as accepted_registrations
+        COUNT(DISTINCT r.id) as total_registrations,
+        COUNT(DISTINCT CASE WHEN r.status = 'accepted' THEN r.id END) as accepted_registrations
       FROM events e
       LEFT JOIN users u ON e.created_by = u.id
       LEFT JOIN registrations r ON e.id = r.event_id
